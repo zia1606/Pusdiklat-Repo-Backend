@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\AdminRegistrationMail;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
@@ -57,49 +59,66 @@ class AuthController extends Controller
     }
 
     // Register Admin
-    public function registerAdmin(Request $request) {
-        $validate = validator($request->all(), [
-            'name' => 'required',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string'
-        ]);
+    // Register Admin
+// Update the registerAdmin method in AuthController
+public function registerAdmin(Request $request) {
+    $validate = validator($request->all(), [
+        'name' => 'required',
+        'email' => 'required|email|unique:users,email',
+        // Remove password from validation since we'll generate it
+    ]);
+    
+    if ($validate->fails()) {
+        return response()->json([
+            'status' => false,
+            'message' => $validate->errors()
+        ], 400);
+    }
+    
+    try {
+        $adminRole = Role::where('name', 'admin')->first();
         
-        if ($validate->fails()) {
+        if (!$adminRole) {
             return response()->json([
                 'status' => false,
-                'message' => $validate->errors()
-            ], 400);
-        }
-        
-        try {
-            $adminRole = Role::where('name', 'admin')->first();
-            
-            if (!$adminRole) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'Admin role not found'
-                ], 500);
-            }
-            
-            $user = new User();
-            $user->name = $request->name;
-            $user->email = $request->email;
-            $user->password = Hash::make($request->password);
-            $user->role_id = $adminRole->id;
-            $user->save();
-            
-            return response()->json([
-                'status' => true,
-                'message' => 'Admin created successfully'
-            ], 200);   
-        }
-        catch (\Exception $e) {
-            return response()->json([
-                'status' => false,
-                'message' => $e->getMessage()
+                'message' => 'Admin role not found'
             ], 500);
         }
+        
+        // Generate random 6-character password
+        $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        $password = substr(str_shuffle($chars), 0, 6);
+        
+        $user = new User();
+        $user->name = $request->name;
+        $user->email = $request->email;
+        $user->password = Hash::make($password);
+        $user->role_id = $adminRole->id;
+        $user->save();
+        
+        // Send email with registration details
+        Mail::to($user->email)->send(new AdminRegistrationMail(
+            $user->name,
+            $user->email,
+            $password
+        ));
+        
+        return response()->json([
+            'status' => true,
+            'message' => 'Admin created successfully. Registration details have been sent to the email.',
+            'data' => [
+                'email' => $user->email,
+                'password' => $password // Return the plain password (only this time)
+            ]
+        ], 200);   
     }
+    catch (\Exception $e) {
+        return response()->json([
+            'status' => false,
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
 
     // Login (untuk admin dan user)
     public function login(Request $request) {
@@ -136,7 +155,7 @@ class AuthController extends Controller
             
             // Buat token berdasarkan role
             $tokenName = $user->role->name;
-            $abilities = $user->isAdmin() ? ['admin:access'] : ['user:access'];
+            $abilities = $user->isAdmin() ? ['admin:access', 'user:access'] : ['user:access'];
             
             $token = $user->createToken($tokenName, $abilities, now()->addHours(24));
             

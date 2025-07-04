@@ -8,27 +8,36 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckUserRole
 {
-    public function handle(Request $request, Closure $next, string $role): Response
-    {
-        $user = $request->user();
-        
-        if (!$user) {
-            return response()->json([
-                'error' => 'Unauthenticated'
-            ], 401);
-        }
+    // app/Http/Middleware/CheckUserRole.php
 
-        // Load role relationship jika belum di-load
-        if (!$user->relationLoaded('role')) {
-            $user->load('role');
-        }
+public function handle(Request $request, Closure $next, string $role): Response
+{
+    $user = $request->user();
+    
+    if (!$user) {
+        return response()->json([
+            'error' => 'Unauthenticated'
+        ], 401);
+    }
 
-        if (!$user->hasRole($role)) {
-            return response()->json([
-                'error' => 'Unauthorized - Insufficient permissions'
-            ], 403);
-        }
+    // Load role relationship jika belum di-load
+    if (!$user->relationLoaded('role')) {
+        $user->load('role');
+    }
 
+    // Admin bisa mengakses semua route
+    if ($user->isAdmin()) {
         return $next($request);
     }
+
+    // Untuk user biasa, cek role yang diizinkan
+    $allowedRoles = explode('|', $role);
+    if (!in_array($user->role->name, $allowedRoles)) {
+        return response()->json([
+            'error' => 'Unauthorized - Insufficient permissions'
+        ], 403);
+    }
+
+    return $next($request);
+}
 }

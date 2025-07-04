@@ -18,14 +18,109 @@ use Illuminate\Support\Facades\Mail;
 
 class UserController extends Controller
 {
-    public function index() {
-        return response() -> json([
-            'status' => true,
-            'message' => 'Multiguard Auth Working now',
-        ], 200);
+    public function index()
+    {
+        try {
+            $users = User::with('role')->get();
+            
+            return response()->json([
+                'status' => true,
+                'message' => 'Users retrieved successfully',
+                'data' => $users
+            ], 200);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to get users: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    public function register(Request $request) {
+    public function updateRole(Request $request, User $user)
+    {
+        try {
+            // Prevent changing role of current admin
+            if ($user->id === $request->user()->id) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'You cannot change your own role'
+                ], 403);
+            }
+            
+            $user->role_id = $request->role_id;
+            $user->save();
+            
+            return response()->json([
+                'status' => true,
+                'message' => 'User role updated successfully',
+                'data' => $user
+            ], 200);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to update user role: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function destroy(Request $request, User $user)
+    {
+        try {
+            // Prevent deleting current admin
+            if ($user->id === $request->user()->id) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'You cannot delete yourself'
+                ], 403);
+            }
+            
+            $user->delete();
+            
+            return response()->json([
+                'status' => true,
+                'message' => 'User deleted successfully'
+            ], 200);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to delete user: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        try {
+            $userIds = $request->user_ids;
+            
+            // Prevent deleting current admin
+            if (in_array($request->user()->id, $userIds)) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'You cannot delete yourself'
+                ], 403);
+            }
+            
+            User::whereIn('id', $userIds)->delete();
+            
+            return response()->json([
+                'status' => true,
+                'message' => 'Users deleted successfully'
+            ], 200);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to delete users: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function register(Request $request) 
+    {
         $validate=validator($request->all(), [
             'name' => 'required',
             'email' => 'required|email|unique:users,email',
@@ -56,7 +151,8 @@ class UserController extends Controller
         }
     }
 
-    public function login(Request $request) {
+    public function login(Request $request) 
+    {
         $validate = Validator($request->all(), [
             'email' => 'required|email',
             'password' => 'required|string'
@@ -122,72 +218,53 @@ class UserController extends Controller
     {
         return Socialite::driver('google')->redirect();
     }
-    
+ 
     public function handleGoogleCallback(Request $request)
-{
-    try {
-        $googleUser = Socialite::driver('google')->user();
-        
-        // Debug: Lihat data yang diterima dari Google
-        Log::debug('Google User Data:', [
-            'id' => $googleUser->getId(),
-            'email' => $googleUser->getEmail(),
-            'name' => $googleUser->getName(),
-            'avatar' => $googleUser->getAvatar()
-        ]);
+    {
+        try {
+            $googleUser = Socialite::driver('google')->user();
+            
+            $existingUser = User::where('email', $googleUser->getEmail())->first();
+            
+            if ($existingUser) {
+                $existingUser->update([
+                    'google_id' => $googleUser->getId(),
+                    'name' => $googleUser->getName(),
+                    'avatar' => $googleUser->getAvatar(),
+                    'email_verified_at' => now(),
+                ]);
+                $user = $existingUser;
+            } else {
+                $user = User::create([
+                    'email' => $googleUser->getEmail(),
+                    'google_id' => $googleUser->getId(),
+                    'name' => $googleUser->getName(),
+                    'avatar' => $googleUser->getAvatar(),
+                    'email_verified_at' => now(),
+                    'password' => Hash::make(Str::random(24)),
+                    'role_id' => 2 // Default role user
+                ]);
+            }
 
-        // Cek apakah user sudah ada
-        $existingUser = User::where('email', $googleUser->getEmail())->first();
-        
-        if ($existingUser) {
-            // User sudah ada - hanya update data Google, JANGAN update password
-            $existingUser->update([
-                'google_id' => $googleUser->getId(),
-                'name' => $googleUser->getName(),
-                'avatar' => $googleUser->getAvatar(),
-                'email_verified_at' => now(),
-                // TIDAK update password - biarkan password yang sudah ada
-            ]);
-            
-            $user = $existingUser;
-            Log::debug('Updated existing user (password preserved):', $user->toArray());
-        } else {
-            // User baru - buat dengan password random
-            $user = User::create([
-                'email' => $googleUser->getEmail(),
-                'google_id' => $googleUser->getId(),
-                'name' => $googleUser->getName(),
-                'avatar' => $googleUser->getAvatar(),
-                'email_verified_at' => now(),
-                'password' => Hash::make(Str::random(24)), // Hanya untuk user baru
-                'role_id' => 2 // Default role user
-            ]);
-            
-            Log::debug('Created new user:', $user->toArray());
+            $user->tokens()->delete();
+            $token = $user->createToken('google-token', ['*'], now()->addHours(24));
+
+            return redirect(env('FRONTEND_URL').'/auth/callback?'.http_build_query([
+                'token' => $token->plainTextToken,
+                'user' => json_encode([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'avatar' => $user->avatar,
+                    'role_id' => $user->role_id,
+                    'role' => $user->role // Make sure this relation is loaded
+                ])
+            ]));
+        } catch (\Exception $e) {
+            Log::error('Google Auth Error:', ['error' => $e->getMessage()]);
+            return redirect(env('FRONTEND_URL').'/login?error='.urlencode('Google authentication failed'));
         }
-
-        // Pastikan data tersimpan
-        Log::debug('Final User Data:', $user->toArray());
-
-        $user->tokens()->delete();
-        $token = $user->createToken('google-token', ['*'], now()->addHours(24));
-
-        // Redirect ke frontend dengan token sebagai parameter
-        return redirect(env('FRONTEND_URL').'/auth/callback?'.http_build_query([
-            'token' => $token->plainTextToken,
-            'user' => json_encode([
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'avatar' => $user->avatar,
-                'role_id' => $user->role_id
-            ])
-        ]));
-    } catch (\Exception $e) {
-        Log::error('Google Auth Error:', ['error' => $e->getMessage()]);
-        return redirect(env('FRONTEND_URL').'/login?error='.urlencode('Google authentication failed'));
     }
-}
 
     public function checkAuthStatus(Request $request)
     {
@@ -224,16 +301,18 @@ class UserController extends Controller
         }
     }
 
-    public function forgot_password() {
+    public function forgot_password() 
+    {
     // Ini hanya menampilkan view (jika diperlukan)
     // Untuk API, mungkin tidak diperlukan karena frontend menangani tampilan
     return response()->json([
         'status' => true,
         'message' => 'Halaman lupa password'
     ]);
-}
+    }
 
-public function forgot_password_act(Request $request) {
+    public function forgot_password_act(Request $request) 
+    {
         $validate = validator($request->all(), [
             'email' => 'required|email|exists:users,email'
         ]);
@@ -286,7 +365,8 @@ public function forgot_password_act(Request $request) {
         }
     }
 
-    public function reset_password_act(Request $request) {
+    public function reset_password_act(Request $request) 
+    {
         Log::info('Request Data:', $request->all());
         
         $validate = validator($request->all(), [
@@ -358,7 +438,8 @@ public function forgot_password_act(Request $request) {
         }
     }
 
-    public function validasi_forgot_password($token) {
+    public function validasi_forgot_password($token) 
+    {
         try {
             $tokenData = PasswordResetToken::where('token', $token)->first();
             

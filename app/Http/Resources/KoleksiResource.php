@@ -25,7 +25,6 @@ class KoleksiResource extends JsonResource
             'jenis_dokumen' => $this->jenisDokumen->nama ?? null,
             'tahun_terbit' => $this->tahun_terbit,
             'penerbit' => $this->penerbit,
-            // 'keywords' => json_decode($this->keywords, true),
             'keywords' => $this->keywords,
             'views' => $this->views,
             'is_best_collection' => $this->is_best_collection,
@@ -33,7 +32,7 @@ class KoleksiResource extends JsonResource
             'dokumen_pdf' => $this->dokumen_pdf ? asset("storage/{$this->dokumen_pdf}") : null,
             'youtube_link' => $this->youtube_link,
             'created_at' => $this->created_at,
-
+            'updated_at' => $this->updated_at,
         ];
     }
 }
