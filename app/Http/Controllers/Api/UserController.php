@@ -349,7 +349,7 @@ class UserController extends Controller
             );
 
             // Send email
-            $resetUrl = env('FRONTEND_URL').'/reset-password/'.$token;
+            $resetUrl = env('FRONTEND_URL').'reset-password/'.$token;
             Mail::to($request->email)->send(new ResetPasswordMail($token, $resetUrl));
 
             return response()->json([
