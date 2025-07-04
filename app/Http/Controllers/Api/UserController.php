@@ -311,59 +311,115 @@ class UserController extends Controller
     ]);
     }
 
-    public function forgot_password_act(Request $request) 
-    {
-        $validate = validator($request->all(), [
-            'email' => 'required|email|exists:users,email'
-        ]);
+    // public function forgot_password_act(Request $request) 
+    // {
+    //     $validate = validator($request->all(), [
+    //         'email' => 'required|email|exists:users,email'
+    //     ]);
         
-        if ($validate->fails()) {
-            return response()->json([
-                'status' => false,
-                'message' => $validate->errors()->first()
-            ], 400);
-        }
+    //     if ($validate->fails()) {
+    //         return response()->json([
+    //             'status' => false,
+    //             'message' => $validate->errors()->first()
+    //         ], 400);
+    //     }
 
-        try {
-            // Check if token already exists and is still valid
-            $existingToken = PasswordResetToken::where('email', $request->email)
-                ->where('created_at', '>', now()->subHour())
-                ->first();
+    //     try {
+    //         // Check if token already exists and is still valid
+    //         $existingToken = PasswordResetToken::where('email', $request->email)
+    //             ->where('created_at', '>', now()->subHour())
+    //             ->first();
                 
-            if ($existingToken) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'Link reset password sudah dikirim. Silakan cek email Anda.'
-                ], 429);
-            }
+    //         if ($existingToken) {
+    //             return response()->json([
+    //                 'status' => false,
+    //                 'message' => 'Link reset password sudah dikirim. Silakan cek email Anda.'
+    //             ], 429);
+    //         }
 
-            // Generate new token
-            $token = Str::random(60);
+    //         // Generate new token
+    //         $token = Str::random(60);
             
-            PasswordResetToken::updateOrCreate(
-                ['email' => $request->email],
-                [
-                    'token' => $token,
-                    'created_at' => now()
-                ]
-            );
+    //         PasswordResetToken::updateOrCreate(
+    //             ['email' => $request->email],
+    //             [
+    //                 'token' => $token,
+    //                 'created_at' => now()
+    //             ]
+    //         );
 
-            // Send email
-            $resetUrl = env('FRONTEND_URL').'/reset-password/'.$token;
-            Mail::to($request->email)->send(new ResetPasswordMail($token, $resetUrl));
+    //         // Send email
+    //         $resetUrl = env('FRONTEND_URL').'/reset-password/'.$token;
+    //         Mail::to($request->email)->send(new ResetPasswordMail($token, $resetUrl));
 
-            return response()->json([
-                'status' => true,
-                'message' => 'Silakan cek email Anda untuk link reset password.'
-            ], 200);
+    //         return response()->json([
+    //             'status' => true,
+    //             'message' => 'Silakan cek email Anda untuk link reset password.'
+    //         ], 200);
             
-        } catch (\Exception $e) {
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'status' => false,
+    //             'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
+    public function forgot_password_act(Request $request) 
+{
+    $validate = validator($request->all(), [
+        'email' => 'required|email|exists:users,email'
+    ]);
+    
+    if ($validate->fails()) {
+        return response()->json([
+            'status' => false,
+            'message' => $validate->errors()->first()
+        ], 400);
+    }
+
+    try {
+        // Check if token already exists and is still valid
+        $existingToken = PasswordResetToken::where('email', $request->email)
+            ->where('created_at', '>', now()->subHour())
+            ->first();
+            
+        if ($existingToken) {
             return response()->json([
                 'status' => false,
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Link reset password sudah dikirim. Silakan cek email Anda.'
+            ], 429);
         }
+
+        // Generate new token - pastikan tidak mengandung karakter problematik
+        $token = Str::random(60);
+        
+        // Simpan token ke database
+        PasswordResetToken::updateOrCreate(
+            ['email' => $request->email],
+            [
+                'token' => $token,
+                'created_at' => now()
+            ]
+        );
+
+        // Kirim email dengan URL yang di-encode dengan benar
+        $resetUrl = env('FRONTEND_URL').'/reset-password/'.urlencode($token);
+        Mail::to($request->email)->send(new ResetPasswordMail($token, $resetUrl));
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Silakan cek email Anda untuk link reset password.'
+        ], 200);
+        
+    } catch (\Exception $e) {
+        Log::error('Forgot password error:', ['error' => $e->getMessage()]);
+        return response()->json([
+            'status' => false,
+            'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     public function reset_password_act(Request $request) 
     {
@@ -438,33 +494,82 @@ class UserController extends Controller
         }
     }
 
-    public function validasi_forgot_password($token) 
-    {
-        try {
-            $tokenData = PasswordResetToken::where('token', $token)->first();
+    // public function validasi_forgot_password($token) 
+    // {
+    //     try {
+    //         $tokenData = PasswordResetToken::where('token', $token)->first();
             
-            if (!$tokenData) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'Token tidak valid atau sudah kadaluarsa'
-                ], 404);
-            }
+    //         if (!$tokenData) {
+    //             return response()->json([
+    //                 'status' => false,
+    //                 'message' => 'Token tidak valid atau sudah kadaluarsa'
+    //             ], 404);
+    //         }
 
-            return response()->json([
-                'status' => true,
-                'message' => 'Token valid',
-                'data' => [
-                    'email' => $tokenData->email,
-                    'token' => $tokenData->token
-                ]
-            ], 200);
+    //         return response()->json([
+    //             'status' => true,
+    //             'message' => 'Token valid',
+    //             'data' => [
+    //                 'email' => $tokenData->email,
+    //                 'token' => $tokenData->token
+    //             ]
+    //         ], 200);
             
-        } catch (\Exception $e) {
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'status' => false,
+    //             'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
+    public function validasi_forgot_password($token) 
+{
+    try {
+        // Debug: Log token yang diterima
+        Log::info('Token received:', ['token' => $token]);
+        
+        // Decode URL encoded characters
+        $decodedToken = urldecode($token);
+        
+        // Debug: Log token setelah decode
+        Log::info('Decoded token:', ['decodedToken' => $decodedToken]);
+        
+        // Cari token di database dengan trim() untuk menghindari whitespace
+        $tokenData = PasswordResetToken::whereRaw('BINARY token = ?', [trim($decodedToken)])
+            ->where('created_at', '>=', now()->subHour())
+            ->first();
+            
+        // Debug: Log hasil pencarian
+        Log::info('Token search result:', ['found' => !!$tokenData]);
+        
+        if (!$tokenData) {
+            // Debug tambahan untuk melihat token yang ada di database
+            $allTokens = PasswordResetToken::all()->pluck('token');
+            Log::error('Token not found in database. Existing tokens:', $allTokens->toArray());
+            
             return response()->json([
                 'status' => false,
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Token tidak valid atau sudah kadaluarsa'
+            ], 404);
         }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Token valid',
+            'data' => [
+                'email' => $tokenData->email,
+                'token' => $tokenData->token
+            ]
+        ], 200);
+        
+    } catch (\Exception $e) {
+        Log::error('Token validation error:', ['error' => $e->getMessage()]);
+        return response()->json([
+            'status' => false,
+            'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+        ], 500);
     }
+}
     
 }
