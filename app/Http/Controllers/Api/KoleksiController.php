@@ -360,6 +360,15 @@ class KoleksiController extends Controller
 
         if($validator->fails())
         {
+            $errors = $validator->errors();
+        
+            if ($errors->has('dokumen_pdf')) {
+                return response()->json([
+                    'message' => 'Ukuran file terlalu besar. Maksimal 10MB',
+                    'error' => $errors
+                ], 422);
+            }
+
             return response()->json([
                 'message' => 'Validasi gagal',
                 'error' => $validator->errors(),
@@ -506,6 +515,15 @@ class KoleksiController extends Controller
         ]);
 
         if($validator->fails()) {
+            $errors = $validator->errors();
+        
+            if ($errors->has('dokumen_pdf')) {
+                return response()->json([
+                    'message' => 'Ukuran file terlalu besar. Maksimal 10MB',
+                    'error' => $errors
+                ], 422);
+            }
+
             return response()->json([
                 'message' => 'Validasi gagal',
                 'error' => $validator->errors(),

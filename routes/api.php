@@ -81,6 +81,15 @@ use Laravel\Socialite\Facades\Socialite;
 //     Route::get('/stats', [RecommendationController::class, 'getRecommendationStats']);
 // });
 
+Route::get('/php-config', function() {
+    return response()->json([
+        'effective_upload_max_filesize' => ini_get('upload_max_filesize'),
+        'effective_post_max_size' => ini_get('post_max_size'),
+        'loaded_ini_file' => php_ini_loaded_file(),
+        'additional_ini' => php_ini_scanned_files()
+    ]);
+});
+
 Route::get('/upload-limits', function() {
     return response()->json([
         'nginx_client_max_body_size' => env('NGINX_CLIENT_MAX_BODY_SIZE'),
