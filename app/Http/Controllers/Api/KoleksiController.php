@@ -348,7 +348,12 @@ class KoleksiController extends Controller
             'tahun_terbit' => 'required|string',
             'penerbit' => 'nullable|string',
             'keywords' => 'nullable|string',
-            'dokumen_pdf' => 'nullable|file|mimes:pdf',
+            'dokumen_pdf' => [
+            'nullable',
+            'file',
+            'mimes:pdf',
+            'max:10240' // 10MB dalam KB
+        ],
             'youtube_link' => 'nullable|url',
             'content_type' => 'required|in:pdf,youtube',
         ]);
@@ -490,7 +495,12 @@ class KoleksiController extends Controller
             'tahun_terbit' => 'sometimes|required|string',
             'penerbit' => 'nullable|string',
             'keywords' => 'nullable|string',
-            'dokumen_pdf' => 'nullable|file|mimes:pdf',
+            'dokumen_pdf' => [
+            'nullable',
+            'file',
+            'mimes:pdf',
+            'max:10240' // 10MB dalam KB
+        ],
             'youtube_link' => 'nullable|url',
             'content_type' => 'sometimes|required|in:pdf,youtube',
         ]);
