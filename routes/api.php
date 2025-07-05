@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\FormatKoleksiController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ConnectionTestController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\UserManagementController;
 // use App\Http\Controllers\BestCollectionController;
@@ -117,6 +118,8 @@ Route::post('/users/bulk-delete', [UserController::class, 'bulkDestroy'])->middl
 
 
 // Public Route
+Route::post('/koleksi/count-by-year', [ConnectionTestController::class, 'count']);
+Route::get('/test-python-connection', [ConnectionTestController::class, 'testPythonConnection']);
 /// Rekomendasi
 Route::get('/koleksi/{id}/recommendations', [RecommendationController::class, 'getRecommendations']);
 /// YouTube 
