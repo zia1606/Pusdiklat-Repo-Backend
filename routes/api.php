@@ -118,6 +118,7 @@ Route::post('/users/bulk-delete', [UserController::class, 'bulkDestroy'])->middl
 
 
 // Public Route
+Route::post('/recommendations', [RecommendationController::class, 'getRecommendations']);
 Route::post('/koleksi/count-by-year', [ConnectionTestController::class, 'count']);
 Route::get('/test-python-connection', [ConnectionTestController::class, 'testPythonConnection']);
 /// Rekomendasi
