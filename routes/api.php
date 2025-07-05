@@ -122,7 +122,7 @@ Route::post('/recommendations', [RecommendationController::class, 'getRecommenda
 Route::post('/koleksi/count-by-year', [ConnectionTestController::class, 'count']);
 Route::get('/test-python-connection', [ConnectionTestController::class, 'testPythonConnection']);
 /// Rekomendasi
-Route::get('/koleksi/{id}/recommendations', [RecommendationController::class, 'getRecommendations']);
+// Route::get('/koleksi/{id}/recommendations', [RecommendationController::class, 'getRecommendations']);
 /// YouTube 
 Route::prefix('youtube')->group(function () {
     // Testing endpoints
