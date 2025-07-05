@@ -81,6 +81,14 @@ use Laravel\Socialite\Facades\Socialite;
 //     Route::get('/stats', [RecommendationController::class, 'getRecommendationStats']);
 // });
 
+Route::get('/upload-limits', function() {
+    return response()->json([
+        'nginx_client_max_body_size' => env('NGINX_CLIENT_MAX_BODY_SIZE'),
+        'php_upload_max_filesize' => ini_get('upload_max_filesize'),
+        'php_post_max_size' => ini_get('post_max_size')
+    ]);
+});
+
 Route::get('/koleksi/best-collections', [KoleksiController::class, 'getBestCollections']);
 
 // Get all users
