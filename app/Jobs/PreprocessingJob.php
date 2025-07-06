@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
@@ -25,6 +26,59 @@ class PreprocessingJob implements ShouldQueue
         $this->koleksiId = $koleksiId;
     }
 
+    // public function handle()
+    // {
+    //     try {
+    //         $koleksi = Koleksi::find($this->koleksiId);
+            
+    //         if (!$koleksi) {
+    //             Log::error("Koleksi dengan ID {$this->koleksiId} tidak ditemukan");
+    //             return;
+    //         }
+
+    //         // Siapkan data untuk preprocessing
+    //         $inputData = [
+    //             'id' => $koleksi->id,
+    //             'judul' => $koleksi->judul ?? '',
+    //             'ringkasan' => $koleksi->ringkasan ?? ''
+    //         ];
+
+    //         // Panggil script Python untuk preprocessing
+    //         $process = new Process([
+    //             'python',
+    //             base_path('app/Services/text_preprocessing.py'),
+    //             json_encode($inputData)
+    //         ]);
+
+    //         $process->mustRun();
+    //         $output = $process->getOutput();
+    //         $result = json_decode($output, true);
+
+    //         if (isset($result['error'])) {
+    //             throw new \Exception($result['error']);
+    //         }
+
+    //         // Update koleksi dengan hasil preprocessing
+    //         $koleksi->update([
+    //             'preprocessing' => $result['preprocessing'],
+    //             'preprocessing_status' => 'completed',
+    //             'preprocessing_completed_at' => now()
+    //         ]);
+
+    //         Log::info("Preprocessing berhasil untuk koleksi ID: {$this->koleksiId}");
+
+    //     } catch (\Exception $e) {
+    //         Log::error("Preprocessing error untuk koleksi ID {$this->koleksiId}: " . $e->getMessage());
+            
+    //         // Update status error
+    //         if ($koleksi = Koleksi::find($this->koleksiId)) {
+    //             $koleksi->update([
+    //                 'preprocessing_status' => 'failed',
+    //                 'preprocessing_error' => $e->getMessage()
+    //             ]);
+    //         }
+    //     }
+    // }
     public function handle()
     {
         try {
@@ -35,36 +89,33 @@ class PreprocessingJob implements ShouldQueue
                 return;
             }
 
-            // Siapkan data untuk preprocessing
-            $inputData = [
-                'id' => $koleksi->id,
-                'judul' => $koleksi->judul ?? '',
-                'ringkasan' => $koleksi->ringkasan ?? ''
-            ];
+            // Kirim data ke Flask untuk preprocessing
+            $response = Http::timeout(30)->post(
+                env('FLASK_PREPROCESSING_URL', 'https://pusdiklat-repo-rekomendasi.zeabur.app/preprocess'),
+                [
+                    'id' => $koleksi->id,
+                    'judul' => $koleksi->judul ?? '',
+                    'ringkasan' => $koleksi->ringkasan ?? ''
+                ]
+            );
 
-            // Panggil script Python untuk preprocessing
-            $process = new Process([
-                'python',
-                base_path('app/Services/text_preprocessing.py'),
-                json_encode($inputData)
-            ]);
-
-            $process->mustRun();
-            $output = $process->getOutput();
-            $result = json_decode($output, true);
-
-            if (isset($result['error'])) {
-                throw new \Exception($result['error']);
+            if ($response->successful()) {
+                $result = $response->json();
+                
+                if ($result['status'] === 'success') {
+                    $koleksi->update([
+                        'preprocessing' => $result['preprocessing'],
+                        'preprocessing_status' => 'completed',
+                        'preprocessing_completed_at' => now()
+                    ]);
+                    
+                    Log::info("Preprocessing berhasil untuk koleksi ID: {$this->koleksiId}");
+                } else {
+                    throw new \Exception($result['message'] ?? 'Error dari service preprocessing');
+                }
+            } else {
+                throw new \Exception('Gagal terhubung ke service preprocessing');
             }
-
-            // Update koleksi dengan hasil preprocessing
-            $koleksi->update([
-                'preprocessing' => $result['preprocessing'],
-                'preprocessing_status' => 'completed',
-                'preprocessing_completed_at' => now()
-            ]);
-
-            Log::info("Preprocessing berhasil untuk koleksi ID: {$this->koleksiId}");
 
         } catch (\Exception $e) {
             Log::error("Preprocessing error untuk koleksi ID {$this->koleksiId}: " . $e->getMessage());
