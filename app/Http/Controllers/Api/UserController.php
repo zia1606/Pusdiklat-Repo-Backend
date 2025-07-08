@@ -18,24 +18,31 @@ use Illuminate\Support\Facades\Mail;
 
 class UserController extends Controller
 {
-    public function index()
-    {
-        try {
-            $users = User::with('role')->get();
-            
-            return response()->json([
-                'status' => true,
-                'message' => 'Users retrieved successfully',
-                'data' => $users
-            ], 200);
-            
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Failed to get users: ' . $e->getMessage()
-            ], 500);
-        }
+    public function index(Request $request)
+{
+    try {
+        $perPage = $request->query('per_page', 10);
+        $users = User::with('role')->paginate($perPage);
+        
+        return response()->json([
+            'status' => true,
+            'message' => 'Users retrieved successfully',
+            'data' => $users->items(),
+            'current_page' => $users->currentPage(),
+            'per_page' => $users->perPage(),
+            'total' => $users->total(),
+            'last_page' => $users->lastPage(),
+            'next_page_url' => $users->nextPageUrl(),
+            'prev_page_url' => $users->previousPageUrl()
+        ], 200);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Failed to get users: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     public function updateRole(Request $request, User $user)
     {
