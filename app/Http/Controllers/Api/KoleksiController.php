@@ -629,109 +629,78 @@ class KoleksiController extends Controller
     }
 
     public function filter(Request $request)
-    {
-        $query = Koleksi::query();
+{
+    $query = Koleksi::query();
 
-        // Pencarian berdasarkan judul, penulis, atau keywords
-        if ($request->has('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('judul', 'like', '%' . $search . '%')
-                ->orWhere('penulis', 'like', '%' . $search . '%')
-                ->orWhere('keywords', 'like', '%' . $search . '%');
-            });
-        }
-
-        // Filter berdasarkan kategori (AND)
-        if ($request->has('kategori')) {
-            $kategori = $request->input('kategori');
-            if (is_array($kategori)) {
-                $query->where(function ($q) use ($kategori) {
-                    foreach ($kategori as $k) {
-                        $q->orWhere('kategori_bang_kom_id', $k);
-                    }
-                });
-            }
-        }
-
-        // Filter berdasarkan jenis dokumen (AND)
-        if ($request->has('jenisDokumen')) {
-            $jenisDokumen = $request->input('jenisDokumen');
-            if (is_array($jenisDokumen)) {
-                $query->where(function ($q) use ($jenisDokumen) {
-                    foreach ($jenisDokumen as $j) {
-                        $q->orWhere('jenis_dokumen_id', $j);
-                    }
-                });
-            }
-        }
-
-        // Filter berdasarkan kategori ATAU jenis dokumen
-        if ($request->has('kategori') || $request->has('jenisDokumen')) {
-            $query->where(function ($q) use ($request) {
-                // Filter kategori (jika ada)
-                if ($request->has('kategori')) {
-                    $kategori = $request->input('kategori');
-                    if (is_array($kategori)) {
-                        $q->orWhereIn('kategori_bang_kom_id', $kategori);
-                    }
-                }
-
-                // Filter jenis dokumen (jika ada)
-                if ($request->has('jenisDokumen')) {
-                    $jenisDokumen = $request->input('jenisDokumen');
-                    if (is_array($jenisDokumen)) {
-                        $q->orWhereIn('jenis_dokumen_id', $jenisDokumen);
-                    }
-                }
-            });
-        }
-
-        // Filter berdasarkan tahun (single year)
-        if ($request->has('tahun')) {
-            $query->where('tahun_terbit', '>=', $request->tahun);
-        }
-
-        // Filter berdasarkan rentang tahun (custom range)
-        if ($request->has('customStart') && $request->has('customEnd')) {
-            $customStart = $request->input('customStart');
-            $customEnd = $request->input('customEnd');
-            
-            // Pastikan customStart dan customEnd adalah angka
-            if (is_numeric($customStart) && is_numeric($customEnd)) {
-                $query->whereBetween('tahun_terbit', [$customStart, $customEnd]);
-            }
-        }
-
-        // Sorting
-        $sortBy = $request->query('sort_by', 'terbaru'); // Default: terbaru
-        switch ($sortBy) {
-            case 'terlama':
-                $query->orderBy('tahun_terbit', 'asc'); // Urutkan terlama
-                break;
-            case 'popular':
-                $query->orderBy('views', 'desc'); // Urutkan berdasarkan popularitas (views)
-                break;
-            default: // Terbaru
-                $query->orderBy('tahun_terbit', 'desc'); // Urutkan terbaru
-                break;
-        }
-
-        // Pagination
-        $perPage = $request->query('per_page', 10); // Default: 10 item per halaman
-        $koleksi = $query->paginate($perPage);
-
-        // Kembalikan respons dengan data dan informasi pagination
-        return response()->json([
-            'data' => KoleksiResource::collection($koleksi)->items(), // Data koleksi
-            'current_page' => KoleksiResource::collection($koleksi)->currentPage(), // Halaman saat ini
-            'prev_page_url' => KoleksiResource::collection($koleksi)->previousPageUrl(), // URL halaman sebelumnya
-            'next_page_url' => KoleksiResource::collection($koleksi)->nextPageUrl(), // URL halaman selanjutnya
-            'total' => KoleksiResource::collection($koleksi)->total(), // Total data
-            'per_page' => KoleksiResource::collection($koleksi)->perPage(),
-            'last_page' => KoleksiResource::collection($koleksi)->lastPage(),
-        ]);
+    // Pencarian
+    if ($request->has('search')) {
+        $search = $request->input('search');
+        $query->where(function ($q) use ($search) {
+            $q->where('judul', 'like', '%' . $search . '%')
+              ->orWhere('penulis', 'like', '%' . $search . '%')
+              ->orWhere('keywords', 'like', '%' . $search . '%');
+        });
     }
+
+    // Filter kategori (OR jika multiple)
+    if ($request->has('kategori')) {
+        $kategori = $request->input('kategori');
+        if (is_array($kategori)) {
+            $query->whereIn('kategori_bang_kom_id', $kategori);
+        }
+    }
+
+    // Filter jenis dokumen (OR jika multiple)
+    if ($request->has('jenisDokumen')) {
+        $jenisDokumen = $request->input('jenisDokumen');
+        if (is_array($jenisDokumen)) {
+            $query->whereIn('jenis_dokumen_id', $jenisDokumen);
+        }
+    }
+
+    // Filter tahun
+    if ($request->has('tahun')) {
+        $query->where('tahun_terbit', '>=', $request->tahun);
+    }
+
+    // Filter rentang tahun
+    if ($request->has('customStart') && $request->has('customEnd')) {
+        $customStart = $request->input('customStart');
+        $customEnd = $request->input('customEnd');
+        
+        if (is_numeric($customStart) && is_numeric($customEnd)) {
+            $query->whereBetween('tahun_terbit', [$customStart, $customEnd]);
+        }
+    }
+
+    // Sorting dengan pengurutan sekunder
+    $sortBy = $request->query('sort_by', 'terbaru');
+    switch ($sortBy) {
+        case 'terlama':
+            $query->orderBy('tahun_terbit', 'asc')->orderBy('id', 'asc');
+            break;
+        case 'popular':
+            $query->orderBy('views', 'desc')->orderBy('id', 'asc');
+            break;
+        default: // Terbaru
+            $query->orderBy('tahun_terbit', 'desc')->orderBy('id', 'desc');
+            break;
+    }
+
+    // Pagination
+    $perPage = $request->query('per_page', 10);
+    $koleksi = $query->paginate($perPage);
+
+    return response()->json([
+        'data' => KoleksiResource::collection($koleksi),
+        'current_page' => $koleksi->currentPage(),
+        'per_page' => $koleksi->perPage(),
+        'total' => $koleksi->total(),
+        'last_page' => $koleksi->lastPage(),
+        'next_page_url' => $koleksi->nextPageUrl(),
+        'prev_page_url' => $koleksi->previousPageUrl(),
+    ]);
+}
 
     public function getYearRange()
     {
