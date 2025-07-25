@@ -15,11 +15,13 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Panggil seeder lainnya
+
         $this->call([
             KategoriBangKomSeeder::class,
             JenisDokumenSeeder::class,
             FormatKoleksiSeeder::class,
             KoleksiSeeder::class,
+            RolesSeeder::class
         ]);
         // User::factory(10)->create();
 

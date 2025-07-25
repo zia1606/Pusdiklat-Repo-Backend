@@ -164,7 +164,7 @@ Route::apiResource('format-koleksi', FormatKoleksiController::class);
 // All user authentication routes
 Route::post('/register/user', [AuthController::class, 'registerUser']);
 Route::post('/register/admin', [AuthController::class, 'registerAdmin']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'loginWithToken']);
 //reset Password user
 // Route::get('/forgot-password', [UserController::class, 'forgot_password']);
 Route::post('/forgot-password-act', [UserController::class, 'forgot_password_act']);
@@ -182,6 +182,7 @@ Route::middleware(['web', 'api'])->group(function () {
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/check-auth', [AuthController::class, 'checkAuthStatus']);
+    Route::get('/user', [UserController::class, 'getCurrentUser']);
 });
 // Email Verification Routes
 // Route::get('/email/verify/{id}/{token}', [AuthController::class, 'verifyEmail'])
