@@ -18,12 +18,13 @@ use Illuminate\Support\Facades\Route;
 use Laravel\Socialite\Facades\Socialite;
 
 //Public Routes
+Route::get('/koleksi/filter', [KoleksiController::class, 'filter']);
 Route::get('/koleksi', [KoleksiController::class, 'index']);                                // Tampilkan list semua koleksi
 Route::get('/koleksi/{koleksi}', [KoleksiController::class, 'show']);                       // Detail koleksi
 Route::get('/koleksi/best-collections', [KoleksiController::class, 'getBestCollections']);  // GET Best Collection
 Route::post('/recommendations', [RecommendationController::class, 'getRecommendations']);   // Rekomendasi
 
-Route::get('/koleksi/filter', [KoleksiController::class, 'filter']);
+
 Route::get('/koleksi/year-range', [KoleksiController::class, 'getYearRange']);
 Route::get('/koleksi/total-views', [KoleksiController::class, 'getTotalViews']);
 Route::get('/koleksi/distribusi-kategori', [KoleksiController::class, 'getDistribusiKategori']);
