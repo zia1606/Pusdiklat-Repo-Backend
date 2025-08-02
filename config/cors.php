@@ -21,14 +21,19 @@ return [
 
     'allowed_origins' => [
         'http://localhost:3000',
-        'https://pusdiklat-repo.zeabur.app'
+        'https://pusdiklat-repo.zeabur.app',
+        'https://pusdiklat-repo-backend.zeabur.app'
     ],
 
     'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    'exposed_headers' => [
+        'Content-Disposition',
+        'Content-Length',
+        'Content-Type'
+    ],
 
     'max_age' => 0,
 

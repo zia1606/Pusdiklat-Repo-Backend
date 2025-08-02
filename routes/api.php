@@ -41,7 +41,7 @@ Route::prefix('youtube')->group(function () {
     Route::get('/thumbnail/{id}', [YoutubeController::class, 'getYoutubeThumbnail']);   // Get YouTube thumbnail
 });
 
-// Route::apiResource('koleksi', KoleksiController::class);
+Route::apiResource('koleksi', KoleksiController::class);
 Route::apiResource('kategori-bang-kom', KategoriBangKomController::class);
 Route::apiResource('jenis-dokumen', JenisDokumenController::class);
 Route::apiResource('format-koleksi', FormatKoleksiController::class);
@@ -92,9 +92,9 @@ Route::middleware(['auth:sanctum', 'checkUserRole:user,admin'])->group(function 
 // Admin route
 Route::get('/admin/check-auth', [AdminController::class, 'checkAuthStatus'])->middleware('auth:admin');
 Route::middleware(['auth:sanctum', 'checkUserRole:admin'])->group(function () {
+    Route::delete('/koleksi/{id}', [KoleksiController::class, 'destroy']);
     Route::post('/koleksi', [KoleksiController::class, 'store']);
     Route::put('/koleksi/{id}', [KoleksiController::class, 'update']);
-    Route::delete('/koleksi/{id}', [KoleksiController::class, 'destroy']);
     Route::get('/koleksi/{id}/edit', [KoleksiController::class, 'edit']);
     // Route::get('/koleksi/{id}/admin-pdf', [KoleksiController::class, 'showAdminPdf']);
     // Route::get('/koleksi/{id}/public-pdf', [KoleksiController::class, 'showPublicPdf']);
