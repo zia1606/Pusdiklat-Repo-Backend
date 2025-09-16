@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
@@ -246,8 +247,16 @@ class UserController extends Controller
                 ]);
             }
 
+            // Use session-based authentication like regular login
+            Auth::login($user);
+            $request->session()->regenerate();
+            
+            // Also create token for API access (hybrid approach)
             $user->tokens()->delete();
             $token = $user->createToken('google-token', ['*'], now()->addHours(24));
+            
+            // Load user with role relationship
+            $user = User::with('role')->find($user->id);
 
             return redirect(env('FRONTEND_URL').'/auth/callback?'.http_build_query([
                 'token' => $token->plainTextToken,
@@ -256,8 +265,7 @@ class UserController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'avatar' => $user->avatar,
-                    'role_id' => $user->role_id,
-                    'role' => $user->role // Make sure this relation is loaded
+                    'role_id' => $user->role_id
                 ])
             ]));
         } catch (\Exception $e) {
@@ -297,6 +305,25 @@ class UserController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Failed to get user count: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getCurrentUser(Request $request)
+    {
+        try {
+            $user = $request->user()->load('role');
+            
+            return response()->json([
+                'status' => true,
+                'message' => 'Current user retrieved successfully',
+                'data' => $user
+            ], 200);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to get current user: ' . $e->getMessage()
             ], 500);
         }
     }

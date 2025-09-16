@@ -7,6 +7,7 @@ use App\Mail\AdminRegistrationMail;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
@@ -120,8 +121,7 @@ public function registerAdmin(Request $request) {
     }
 }
 
-    // Login (untuk admin dan user)
-    public function login(Request $request) {
+    public function loginWithToken(Request $request) {
         $validate = Validator($request->all(), [
             'email' => 'required|email',
             'password' => 'required|string'
@@ -168,6 +168,57 @@ public function registerAdmin(Request $request) {
                 ],
                 'role' => $user->role->name
             ], 200);
+        }
+        catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Login (untuk admin dan user)
+    public function login(Request $request) {
+        $validate = Validator($request->all(), [
+            'email' => 'required|email',
+            'password' => 'required|string'
+        ]);
+        
+        if ($validate->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => $validate->errors()
+            ], 400);
+        }
+        
+        try {
+            // Use Auth::attempt for stateful authentication
+            if (Auth::attempt($request->only('email', 'password'))) {
+                $request->session()->regenerate();
+                
+                $user = User::with('role')->find(Auth::id());
+                
+                // Optional: Still create token for API access if needed
+                $user->tokens()->delete();
+                $tokenName = $user->role->name;
+                $abilities = $user->isAdmin() ? ['admin:access', 'user:access'] : ['user:access'];
+                $token = $user->createToken($tokenName, $abilities, now()->addHours(24));
+                
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Login successfully',
+                    'data' => [
+                        'user' => $user,
+                        'token' => $token->plainTextToken
+                    ],
+                    'role' => $user->role->name
+                ], 200);
+            }
+            
+            return response()->json([
+                'status' => false,
+                'message' => 'Invalid credentials'
+            ], 401);
         }
         catch (\Exception $e) {
             return response()->json([
