@@ -29,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'checkUserRole' => \App\Http\Middleware\CheckUserRole::class, // Update ini
             // 'checkAuthType' => \App\Http\Middleware\checkUserType::class,
             'checkTokenExpiry' => \App\Http\Middleware\CheckTokenExpiry::class,
+            'checkUserStatus' => \App\Http\Middleware\CheckUserStatus::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -9,7 +9,7 @@ class FormatKoleksiSeeder extends Seeder
 {
     public function run(): void
     {
-        FormatKoleksi::create(['nama' => 'PDF']);
-        FormatKoleksi::create(['nama' => 'Video']);
+        FormatKoleksi::firstOrCreate(['nama' => 'PDF']);
+        FormatKoleksi::firstOrCreate(['nama' => 'Video']);
     }
 }

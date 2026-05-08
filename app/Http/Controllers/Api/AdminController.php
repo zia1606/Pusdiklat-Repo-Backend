@@ -130,4 +130,35 @@ class AdminController extends Controller
             ], 401);
         }
     }
+
+    public function getDashboardStats()
+    {
+        try {
+            $today = \Carbon\Carbon::today();
+            
+            return response()->json([
+                'status' => true,
+                'data' => [
+                    'counts' => [
+                        'total_users_active' => \App\Models\User::count(),
+                        'total_koleksi_elektronik' => \App\Models\Koleksi::count(),
+                        'total_koleksi_aktif' => \App\Models\Koleksi::where('is_active', 1)->count(),
+                        'total_koleksi_inactive' => \App\Models\Koleksi::where('is_active', 0)->count(),
+                    ],
+                    'today_visitors' => \App\Models\BukuTamu::with('user')
+                        ->whereDate('created_at', $today)
+                        ->orderBy('created_at', 'desc')
+                        ->get(),
+                    'most_read' => \App\Models\Koleksi::orderBy('views', 'desc')
+                        ->limit(5)
+                        ->get()
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to get dashboard stats: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

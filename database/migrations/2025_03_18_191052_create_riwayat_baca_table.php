@@ -12,12 +12,21 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('riwayat_baca', function (Blueprint $table) {
-            $table->id();$table->unsignedBigInteger('user_id');
+            $table->id();
+            $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('koleksi_id');
+            $table->softDeletes(); // Soft delete
             $table->timestamps();
 
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('koleksi_id')->references('id')->on('koleksi')->onDelete('cascade');
+            $table->foreign('user_id')
+                ->references('id')
+                ->on('users')
+                ->onDelete('no action'); // Diubah dari cascade
+
+            $table->foreign('koleksi_id')
+                ->references('id')
+                ->on('koleksi')
+                ->onDelete('cascade');
         });
     }
 

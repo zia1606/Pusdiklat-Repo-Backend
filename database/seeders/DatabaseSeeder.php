@@ -16,16 +16,23 @@ class DatabaseSeeder extends Seeder
     {
         // Panggil seeder lainnya
         $this->call([
-            KategoriBangKomSeeder::class,
-            JenisDokumenSeeder::class,
+            RolesSeeder::class,
+            UserSeeder::class,
             FormatKoleksiSeeder::class,
-            KoleksiSeeder::class,
+            PenulisSeeder::class,
+            KategoriSeeder::class,
+            FaqSeeder::class,
+            TataTertibSeeder::class,
+            PemberitahuanSeeder::class,
+            SettingSeeder::class,
+            BukuTamuSeeder::class,
+            NewSystemSeeder::class, // Menambahkan data koleksi
         ]);
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // User::factory()->create([
+        //     'name' => 'Test User',
+        //     'email' => 'test@example.com',
+        // ]);
     }
 }

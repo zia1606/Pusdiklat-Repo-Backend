@@ -85,6 +85,16 @@ class RiwayatBacaController extends Controller
                 'koleksi_id' => $request->koleksi_id,
             ]);
 
+            // Load koleksi for description
+            $koleksi = \App\Models\Koleksi::find($request->koleksi_id);
+            \App\Models\ActivityLog::record(
+                $user->id,
+                'Riwayat Baca',
+                'Membaca Koleksi',
+                "Membaca koleksi: " . ($koleksi->judul ?? 'Koleksi Terhapus'),
+                ['koleksi_id' => $request->koleksi_id, 'judul' => $koleksi->judul ?? null]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Koleksi berhasil ditambahkan ke riwayat',

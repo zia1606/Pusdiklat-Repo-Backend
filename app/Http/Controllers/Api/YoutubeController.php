@@ -10,9 +10,8 @@ use Illuminate\Support\Facades\Log;
 
 class YoutubeController extends Controller
 {
-    /**
-     * Get YouTube embed data for a collection - Enhanced version
-     */
+    
+    // Get YouTube embed data for a collection - Enhanced version
     public function getYoutubeEmbed($id)
     {
         try {
@@ -103,9 +102,7 @@ class YoutubeController extends Controller
         }
     }
 
-    /**
-     * Track YouTube video view
-     */
+    // Catat jumlah video view
     public function trackYoutubeView(Request $request, $id)
     {
         try {
@@ -128,9 +125,7 @@ class YoutubeController extends Controller
         }
     }
 
-    /**
-     * Get YouTube video thumbnail
-     */
+    //YouTube thumbnail
     public function getYoutubeThumbnail($id)
     {
         try {
@@ -176,9 +171,7 @@ class YoutubeController extends Controller
         }
     }
 
-    /**
-     * Extract YouTube video ID from URL - Enhanced version
-     */
+    // Extract YouTube video ID dari URL
     private function extractYoutubeId($url)
     {
         if (empty($url)) {
@@ -218,9 +211,7 @@ class YoutubeController extends Controller
         return null;
     }
 
-    /**
-     * Get basic video data (you can expand this to use YouTube API)
-     */
+    // Get basic video data
     private function getYoutubeVideoData($videoId)
     {
         // Basic data without API call
@@ -230,132 +221,5 @@ class YoutubeController extends Controller
             'watch_url' => "https://www.youtube.com/watch?v={$videoId}",
             'thumbnail_url' => "https://img.youtube.com/vi/{$videoId}/hqdefault.jpg"
         ];
-    }
-
-    /**
-     * Validate YouTube URL format
-     */
-    public function validateYoutubeUrl(Request $request)
-    {
-        $request->validate([
-            'url' => 'required|url'
-        ]);
-
-        $url = $request->input('url');
-        $videoId = $this->extractYoutubeId($url);
-
-        if (!$videoId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Format URL YouTube tidak valid'
-            ], 400);
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'is_valid' => true,
-                'video_id' => $videoId,
-                'embed_url' => "https://www.youtube.com/embed/{$videoId}",
-                'thumbnail_url' => "https://img.youtube.com/vi/{$videoId}/hqdefault.jpg"
-            ]
-        ]);
-    }
-
-    /**
-     * Test endpoint untuk debugging YouTube functionality
-     */
-    public function testYoutubeEndpoint()
-    {
-        return response()->json([
-            'success' => true,
-            'message' => 'YouTube Controller is working',
-            'timestamp' => now(),
-            'available_methods' => [
-                'GET /api/youtube/test' => 'Test endpoint',
-                'GET /api/youtube/embed/{id}' => 'Get embed data',
-                'POST /api/youtube/validate-url' => 'Validate YouTube URL',
-                'GET /api/youtube/thumbnail/{id}' => 'Get thumbnail',
-                'POST /api/youtube/track-view/{id}' => 'Track view'
-            ]
-        ]);
-    }
-
-    /**
-     * Debug specific collection YouTube data
-     */
-    public function debugCollection($id)
-    {
-        try {
-            $koleksi = Koleksi::findOrFail($id);
-            
-            $debug_info = [
-                'collection_id' => $koleksi->id,
-                'title' => $koleksi->judul,
-                'youtube_link' => $koleksi->youtube_link,
-                'has_youtube_link' => !empty($koleksi->youtube_link),
-                'youtube_link_length' => strlen($koleksi->youtube_link ?? ''),
-            ];
-
-            if ($koleksi->youtube_link) {
-                $embedId = $this->extractYoutubeId($koleksi->youtube_link);
-                $debug_info['extracted_id'] = $embedId;
-                $debug_info['extraction_successful'] = !empty($embedId);
-                
-                if ($embedId) {
-                    $debug_info['embed_url'] = "https://www.youtube.com/embed/{$embedId}";
-                    $debug_info['watch_url'] = "https://www.youtube.com/watch?v={$embedId}";
-                    $debug_info['thumbnail_url'] = "https://img.youtube.com/vi/{$embedId}/hqdefault.jpg";
-                }
-            }
-
-            return response()->json([
-                'success' => true,
-                'debug_info' => $debug_info
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ], 500);
-        }
-    }
-
-    /**
-     * Test URL extraction with various YouTube URL formats
-     */
-    public function testUrlExtraction(Request $request)
-    {
-        $testUrls = [
-            'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-            'https://youtu.be/dQw4w9WgXcQ',
-            'https://www.youtube.com/embed/dQw4w9WgXcQ',
-            'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=30s',
-            'https://m.youtube.com/watch?v=dQw4w9WgXcQ',
-            'dQw4w9WgXcQ' // Direct ID
-        ];
-
-        // Add custom URL if provided
-        if ($request->has('url')) {
-            $testUrls[] = $request->input('url');
-        }
-
-        $results = [];
-        foreach ($testUrls as $url) {
-            $extractedId = $this->extractYoutubeId($url);
-            $results[] = [
-                'original_url' => $url,
-                'extracted_id' => $extractedId,
-                'success' => !empty($extractedId),
-                'embed_url' => $extractedId ? "https://www.youtube.com/embed/{$extractedId}" : null
-            ];
-        }
-
-        return response()->json([
-            'success' => true,
-            'test_results' => $results
-        ]);
     }
 }

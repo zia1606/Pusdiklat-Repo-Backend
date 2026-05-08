@@ -18,34 +18,41 @@ return new class extends Migration
             $table->longText('ringkasan')->nullable();
             $table->unsignedBigInteger('kategori_bang_kom_id')->nullable();
             $table->unsignedBigInteger('jenis_dokumen_id')->nullable();
-            $table->unsignedBigInteger('format_koleksi_id')->nullable(); // Diatur sebagai nullable
+            $table->unsignedBigInteger('format_koleksi_id')->nullable();
             $table->string('tahun_terbit');
             $table->string('penerbit')->nullable();
-            $table->string('dokumen_pdf')->nullable(); // Untuk menyimpan file PDF
-            $table->text('keywords')->nullable(); // Tambahkan kolom keywords sebagai JSON
+            $table->string('edisi_cetak')->nullable();
+            $table->string('tempat_terbit')->nullable();
+            $table->string('isbn')->nullable();
+            $table->string('isbn_digital')->nullable();
+            $table->string('issn')->nullable();
+            $table->string('jml_hal_romawi')->nullable();
+            $table->string('jml_hal_angka')->nullable();
+            $table->string('Klasifikasi')->nullable();
+            $table->string('kode')->nullable();
+            $table->string('id_rak')->nullable();
+            $table->string('dokumen_pdf')->nullable();
+            $table->text('keywords')->nullable();
             $table->unsignedBigInteger('views')->default(0);
             $table->boolean('is_best_collection')->default(false);
             $table->longText('preprocessing')->nullable();
             $table->string('youtube_link')->nullable();
             $table->timestamps();
 
-            // Foreign key untuk kategori_bang_kom_id
             $table->foreign('kategori_bang_kom_id')
-                  ->references('id')
-                  ->on('kategori_bang_kom')
-                  ->onDelete('cascade');
+                ->references('id')
+                ->on('kategori_bang_kom')
+                ->onDelete('set null');
 
-            // Foreign key untuk jenis_dokumen_id
             $table->foreign('jenis_dokumen_id')
-                  ->references('id')
-                  ->on('jenis_dokumen')
-                  ->onDelete('cascade');
+                ->references('id')
+                ->on('jenis_dokumen')
+                ->onDelete('set null');
 
-            // Foreign key untuk format_koleksi_id
             $table->foreign('format_koleksi_id')
-                  ->references('id')
-                  ->on('format_koleksi')
-                  ->onDelete('set null'); // Jika format koleksi dihapus, set null di koleksi
+                ->references('id')
+                ->on('format_koleksi')
+                ->onDelete('set null');
         });
     }
 
@@ -55,10 +62,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('koleksi', function (Blueprint $table) {
-            // Hapus foreign key untuk format_koleksi_id
+            $table->dropForeign(['kategori_bang_kom_id']);
+            $table->dropForeign(['jenis_dokumen_id']);
             $table->dropForeign(['format_koleksi_id']);
-            // Hapus kolom format_koleksi_id
-            $table->dropColumn('format_koleksi_id');
         });
 
         Schema::dropIfExists('koleksi');

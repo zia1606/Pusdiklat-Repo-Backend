@@ -25,7 +25,7 @@ class RecommendationController extends Controller
             $referenceId = $request->koleksi_id;
             $topN = $request->top_n ?? 5;
 
-            // 1. Coba dapatkan rekomendasi dari Python
+            //rekomendasi dari Python
             $pythonRecommendations = $this->getPythonRecommendations($referenceId, $topN);
             
             if ($pythonRecommendations['success']) {
@@ -36,7 +36,7 @@ class RecommendationController extends Controller
                 ]);
             }
 
-            // 2. Fallback ke rekomendasi berdasarkan kategori/jenis dokumen
+            //Fallback ke rekomendasi berdasarkan kategori/jenis dokumen
             $fallbackRecommendations = $this->getCategoryBasedRecommendations($referenceId, $topN);
             
             return response()->json([
@@ -59,6 +59,7 @@ class RecommendationController extends Controller
     {
         $collections = Koleksi::with(['kategoriBangKom', 'jenisDokumen'])
             ->whereNotNull('preprocessing')
+            ->activeForUser()
             ->get();
 
         if ($collections->count() < 2) {
@@ -107,9 +108,11 @@ class RecommendationController extends Controller
     private function getCategoryBasedRecommendations($referenceId, $topN)
     {
         $reference = Koleksi::with(['kategoriBangKom', 'jenisDokumen'])
+            ->activeForUser()
             ->findOrFail($referenceId);
 
         $recommendations = Koleksi::with(['kategoriBangKom', 'jenisDokumen'])
+            ->activeForUser()
             ->where('id', '!=', $referenceId)
             ->where(function($query) use ($reference) {
                 $query->where('kategori_bang_kom_id', $reference->kategori_bang_kom_id)

@@ -35,4 +35,13 @@ return [
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
+    'nas' => [
+        'api_key' => env('NAS_API_KEY'),
+        'base_url' => env('NAS_BASE_URL', 'https://gojags-office.etc-nso.id'),
+        'feature_name' => env('NAS_FEATURE_NAME', 'book'),
+        'endpoint_upload' => '/api/nas-external/upload',
+        'endpoint_list' => '/api/nas-external/list',
+        'endpoint_download' => '/api/nas-external/download',
+        'endpoint_delete' => '/api/nas-external/delete',
+    ],
 ];

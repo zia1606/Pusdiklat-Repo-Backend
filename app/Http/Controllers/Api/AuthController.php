@@ -58,8 +58,6 @@ class AuthController extends Controller
         }
     }
 
-    // Register Admin
-    // Register Admin
 // Update the registerAdmin method in AuthController
 public function registerAdmin(Request $request) {
     $validate = validator($request->all(), [
@@ -135,7 +133,7 @@ public function registerAdmin(Request $request) {
         }
         
         try {
-            $user = User::with('role')->where('email', $request->email)->first();
+            $user = User::withTrashed()->with('role')->where('email', $request->email)->first();
             
             if(!$user) {
                 return response()->json([
@@ -144,6 +142,14 @@ public function registerAdmin(Request $request) {
                 ], 404);
             }
             
+            // Periksa jika user sudah dihapus
+            if ($user->trashed()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Your account has been deactivated'
+                ], 403);
+            }
+
             if(!Hash::check($request->password, $user->password)) {
                 return response()->json([
                     'status' => false,
@@ -158,6 +164,15 @@ public function registerAdmin(Request $request) {
             $abilities = $user->isAdmin() ? ['admin:access', 'user:access'] : ['user:access'];
             
             $token = $user->createToken($tokenName, $abilities, now()->addHours(24));
+            
+            // Catat log login
+            \App\Models\ActivityLog::record(
+                $user->id,
+                'Login',
+                'Login',
+                'Pengguna berhasil login ke sistem',
+                ['ip' => $request->ip(), 'user_agent' => $request->userAgent()]
+            );
             
             return response()->json([
                 'status' => true,

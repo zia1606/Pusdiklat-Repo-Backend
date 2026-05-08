@@ -2,14 +2,15 @@
 
 namespace App\Models;
 
+use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -17,7 +18,10 @@ class User extends Authenticatable
         'password',
         'google_id',
         'avatar',
-        'role_id'
+        'role_id',
+        'phone',
+        'address',
+        'email_verified_at'
     ];
 
     protected $hidden = [
@@ -37,6 +41,18 @@ class User extends Authenticatable
     public function role()
     {
         return $this->belongsTo(Role::class);
+    }
+
+    // Relationship dengan Favorit
+    public function favorites()
+    {
+        return $this->hasMany(Favorit::class);
+    }
+
+    // Relationship dengan RiwayatBaca
+    public function readingHistories()
+    {
+        return $this->hasMany(RiwayatBaca::class);
     }
 
     // Helper methods untuk check role

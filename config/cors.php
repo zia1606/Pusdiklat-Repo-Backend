@@ -21,6 +21,7 @@ return [
 
     'allowed_origins' => [
         'http://localhost:3000',
+        'http://10.110.120.115:3000',
         'https://pusdiklat-repo.zeabur.app',
         'https://pusdiklat-repo-backend.zeabur.app'
     ],

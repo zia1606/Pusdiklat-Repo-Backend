@@ -2,26 +2,29 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Mail\ResetPasswordMail;
-use App\Models\PasswordResetToken;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Carbon\Carbon;
 use App\Models\User;
 use Dotenv\Validator;
+use App\Models\Favorit;
+use App\Models\RiwayatBaca;
 use Illuminate\Support\Str;
-use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Http\Request;
+use App\Mail\ResetPasswordMail;
+use App\Models\PasswordResetToken;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Laravel\Socialite\Facades\Socialite;
 
 class UserController extends Controller
 {
     public function index()
     {
         try {
-            $users = User::with('role')->get();
+            $users = User::withTrashed()->with('role')->get();
             
             return response()->json([
                 'status' => true,
@@ -36,6 +39,112 @@ class UserController extends Controller
             ], 500);
         }
     }
+
+    public function trashed()
+{
+    try {
+        $users = User::onlyTrashed()->with('role')->get();
+        
+        return response()->json([
+            'status' => true,
+            'message' => 'Trashed users retrieved successfully',
+            'data' => $users
+        ], 200);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Failed to get trashed users: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+public function showProfile(Request $request)
+{
+    try {
+        $user = $request->user();
+        
+        return response()->json([
+            'status' => true,
+            'message' => 'User profile retrieved successfully',
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'address' => $user->address,
+                'avatar' => $user->avatar,
+                'account_created_at' => $user->created_at,
+                'email_verified_at' => $user->email_verified_at,
+                'role' => $user->role->name ?? null
+            ]
+        ], 200);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Failed to get user profile: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Update user profile
+ */
+public function updateProfile(Request $request)
+{
+    try {
+        // Validasi langsung di controller
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|email|unique:users,email,'.$request->user()->id,
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:500',
+            'avatar' => 'nullable|string',
+        ]);
+
+        $user = $request->user();
+        
+        // Update data yang divalidasi
+        $user->fill($validated);
+        
+        // Jika email diubah, reset verifikasi email
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+            // Kirim email verifikasi baru jika diperlukan
+        }
+        
+        $user->save();
+        
+        return response()->json([
+            'status' => true,
+            'message' => 'Profile updated successfully',
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'address' => $user->address,
+                'avatar' => $user->avatar,
+                'account_created_at' => $user->created_at,
+                'email_verified_at' => $user->email_verified_at,
+                'role' => $user->role->name ?? null
+            ]
+        ], 200);
+        
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Validation error',
+            'errors' => $e->errors()
+        ], 422);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Failed to update profile: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
     public function updateRole(Request $request, User $user)
     {
@@ -65,59 +174,97 @@ class UserController extends Controller
         }
     }
 
+    
     public function destroy(Request $request, User $user)
-    {
-        try {
-            // Prevent deleting current admin
-            if ($user->id === $request->user()->id) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'You cannot delete yourself'
-                ], 403);
-            }
-            
-            $user->delete();
-            
-            return response()->json([
-                'status' => true,
-                'message' => 'User deleted successfully'
-            ], 200);
-            
-        } catch (\Exception $e) {
+{
+    try {
+        if ($user->id === $request->user()->id) {
             return response()->json([
                 'status' => false,
-                'message' => 'Failed to delete user: ' . $e->getMessage()
-            ], 500);
+                'message' => 'You cannot delete yourself'
+            ], 403);
         }
+        
+        DB::transaction(function () use ($user) {
+            // Soft delete related data
+            $user->favorites()->delete();
+            $user->readingHistories()->delete();
+            
+            // Soft delete user
+            $user->delete();
+        });
+        
+        return response()->json([
+            'status' => true,
+            'message' => 'User berhasil dinonaktifkan'
+        ], 200);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Failed to delete user: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     public function bulkDestroy(Request $request)
-    {
-        try {
-            $userIds = $request->user_ids;
-            
-            // Prevent deleting current admin
-            if (in_array($request->user()->id, $userIds)) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'You cannot delete yourself'
-                ], 403);
-            }
-            
-            User::whereIn('id', $userIds)->delete();
-            
-            return response()->json([
-                'status' => true,
-                'message' => 'Users deleted successfully'
-            ], 200);
-            
-        } catch (\Exception $e) {
+{
+    try {
+        $userIds = $request->user_ids;
+        
+        if (in_array($request->user()->id, $userIds)) {
             return response()->json([
                 'status' => false,
-                'message' => 'Failed to delete users: ' . $e->getMessage()
-            ], 500);
+                'message' => 'You cannot delete yourself'
+            ], 403);
         }
+        
+        DB::transaction(function () use ($userIds) {
+            // Soft delete related data
+            Favorit::whereIn('user_id', $userIds)->delete();
+            RiwayatBaca::whereIn('user_id', $userIds)->delete();
+            
+            // Soft delete users
+            User::whereIn('id', $userIds)->delete();
+        });
+        
+        return response()->json([
+            'status' => true,
+            'message' => 'Users deleted successfully'
+        ], 200);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Failed to delete users: ' . $e->getMessage()
+        ], 500);
     }
+}
+
+public function restore($userId)
+{
+    try {
+        DB::transaction(function () use ($userId) {
+            // Restore user
+            User::withTrashed()->where('id', $userId)->restore();
+            
+            // Restore related data
+            Favorit::withTrashed()->where('user_id', $userId)->restore();
+            RiwayatBaca::withTrashed()->where('user_id', $userId)->restore();
+        });
+        
+        return response()->json([
+            'status' => true,
+            'message' => 'User berhasil di-restore'
+        ], 200);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Failed to restore user: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
     public function register(Request $request) 
     {
@@ -151,68 +298,68 @@ class UserController extends Controller
         }
     }
 
-    public function login(Request $request) 
-    {
-        $validate = Validator($request->all(), [
-            'email' => 'required|email',
-            'password' => 'required|string'
-        ]);
+    // public function login(Request $request) 
+    // {
+    //     $validate = Validator($request->all(), [
+    //         'email' => 'required|email',
+    //         'password' => 'required|string'
+    //     ]);
         
-        if ($validate -> fails()) {
-            return response() -> json([
-                'status' => false,
-                'message' => $validate->errors()
-            ], 400);
-        }
-        try {
-            $data = User::where('email', $request->email)->first();
-            if(!$data) {
-                return response() -> json([
-                    'status' => false,
-                    'message' => 'Invalid email'
-                ], 404);
-            }
-            if(!Hash::check($request->password, $data->password)) {
-                return response() -> json([
-                    'status' => false,
-                    'message' => 'Invalid Password',
-                ], 404);
-            }
-            $data->tokens()->delete();
-            // $data['token'] = $data->createToken('user')->plainTextToken;
-            $data['token'] = $data->createToken('user', ['*'], now()->addHours(24))->plainTextToken;
-            return response() -> json([
-                'status' => true,
-                'message' => 'Login succesfully',
-                'data' =>$data
-            ], 200);
-        }
-        catch (\Exception $e) {
-            return response() -> json([
-                'status' => false,
-                'message' => $e -> getMessage()
-            ], 500);
-        }
-    }
+    //     if ($validate -> fails()) {
+    //         return response() -> json([
+    //             'status' => false,
+    //             'message' => $validate->errors()
+    //         ], 400);
+    //     }
+    //     try {
+    //         $data = User::where('email', $request->email)->first();
+    //         if(!$data) {
+    //             return response() -> json([
+    //                 'status' => false,
+    //                 'message' => 'Invalid email'
+    //             ], 404);
+    //         }
+    //         if(!Hash::check($request->password, $data->password)) {
+    //             return response() -> json([
+    //                 'status' => false,
+    //                 'message' => 'Invalid Password',
+    //             ], 404);
+    //         }
+    //         $data->tokens()->delete();
+    //         // $data['token'] = $data->createToken('user')->plainTextToken;
+    //         $data['token'] = $data->createToken('user', ['*'], now()->addHours(24))->plainTextToken;
+    //         return response() -> json([
+    //             'status' => true,
+    //             'message' => 'Login succesfully',
+    //             'data' =>$data
+    //         ], 200);
+    //     }
+    //     catch (\Exception $e) {
+    //         return response() -> json([
+    //             'status' => false,
+    //             'message' => $e -> getMessage()
+    //         ], 500);
+    //     }
+    // }
 
-    public function logout(Request $request)
-    {
-        try {
-            // Hapus token yang sedang digunakan
-            $request->user()->currentAccessToken()->delete();
+    // public function logout(Request $request)
+    // {
+    //     try {
+    //         // Hapus token yang sedang digunakan
+    //         $request->user()->currentAccessToken()->delete();
 
-            return response()->json([
-                'status' => true,
-                'message' => 'Logout berhasil'
-            ], 200);
+    //         return response()->json([
+    //             'status' => true,
+    //             'message' => 'Logout berhasil'
+    //         ], 200);
 
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Gagal logout: ' . $e->getMessage()
-            ], 500);
-        }
-    }
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'status' => false,
+    //             'message' => 'Gagal logout: ' . $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
     
     public function redirectToGoogle()
     {
